@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from accounts.auth import token_required
 from django.shortcuts import get_object_or_404
 from django.db.models import Prefetch
+from hashlib import sha1
 
 from courses.models import (
     Answer,
@@ -62,6 +63,40 @@ def homework_data_view(request, course_slug: str, homework_slug: str):
     }
 
     return JsonResponse(result)
+
+
+@token_required
+def graduates_data_view(request, course_slug: str):
+    """Return information about course graduates."""
+    course = get_object_or_404(Course, slug=course_slug)
+
+    submissions = (
+        ProjectSubmission.objects.filter(project__course=course, passed=True)
+        .select_related("enrollment__student")
+        .all()
+    )
+
+    seen = set()
+    results = []
+
+    for submission in submissions:
+        enrollment = submission.enrollment
+        student = enrollment.student
+
+        email = student.email
+        if email in seen:
+            continue
+
+        name = enrollment.certificate_name or enrollment.display_name
+
+        # same logic as in the notebooks
+        email_clean = email.lower().strip()
+        cert_hash = sha1((email_clean + "_").encode("utf-8")).hexdigest()
+
+        results.append({"email": email, "name": name, "hash": cert_hash})
+        seen.add(email)
+
+    return JsonResponse({"results": results})
 
 
 @token_required

@@ -85,6 +85,11 @@ urlpatterns = [
         name="data_homework",
     ),
     path(
+        "data/<slug:course_slug>/graduates",
+        data.graduates_data_view,
+        name="data_graduates",
+    ),
+    path(
         "data/<slug:course_slug>/project/<slug:project_slug>",
         data.project_data_view,
         name="data_project",
