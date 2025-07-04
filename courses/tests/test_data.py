@@ -2,9 +2,9 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from hashlib import sha1
 
 from courses.models import (
-    User,
     Course,
     Homework,
     Submission,
@@ -15,6 +15,7 @@ from courses.models import (
     Answer,
     Project,
     ProjectSubmission,
+    ProjectState,
 )
 
 from accounts.models import CustomUser, Token
@@ -382,3 +383,46 @@ class DataAPITestCase(TestCase):
         )
         with self.assertRaises(ValidationError):
             self.project_submission.full_clean()
+
+    def test_graduates_data_view(self):
+        project = Project.objects.create(
+            course=self.course,
+            slug="proj",
+            title="Project",
+            description="Description",
+            submission_due_date=timezone.now() + timezone.timedelta(days=7),
+            peer_review_due_date=timezone.now() + timezone.timedelta(days=14),
+            state=ProjectState.COMPLETED.value,
+        )
+
+        submission = ProjectSubmission(
+            project=project,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://github.com/DataTalksClub/project",
+            commit_id="abcd1234",
+            passed=True,
+        )
+        submission.full_clean()
+        submission.save()
+
+        url = reverse(
+            "data_graduates",
+            kwargs={"course_slug": self.course.slug},
+        )
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        expected_hash = sha1((self.user.email.lower().strip() + "_").encode("utf-8")).hexdigest()
+        self.assertEqual(
+            data["results"],
+            [
+                {
+                    "email": self.user.email,
+                    "name": self.enrollment.display_name,
+                    "hash": expected_hash,
+                }
+            ],
+        )
