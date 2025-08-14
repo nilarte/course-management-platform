@@ -7,7 +7,7 @@
     our courses in our webpage <a href="https://datatalks.club/" target="_blank">https://datatalks.club/</a>.
   </div>
 
-  <h3 class="pt-4">Active courses</h3>
+  <h3 class="pt-4">Running courses</h3>
   <ul>
     {% for course in active_courses %}
       <li><a href="{% url 'course' course.slug %}">{{ course.title }}</a></li>
